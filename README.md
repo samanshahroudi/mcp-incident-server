@@ -12,15 +12,16 @@ An MCP server can expose backend capabilities to many agent clients. That makes 
 
 ## Run and example
 
-From `portfolio`, seed a local incident:
+From this repository after `python -m pip install -e ".[dev]"`, initialize the database and seed a local incident:
 
 ```bash
+python -c "from mcp_incident_server.server import Incidents; Incidents('incidents.db')"
 python -c "import sqlite3; db=sqlite3.connect('incidents.db'); db.execute('insert into incidents(id,title) values (?,?)',(7,'API latency')); db.commit()"
-python -m 04_mcp_incident_server.approve --db incidents.db --incident-id 7 --body 'Rollback completed' --actor reviewer
-PORTFOLIO_DB=incidents.db python -m 04_mcp_incident_server.server
+python -m mcp_incident_server.approve --db incidents.db --incident-id 7 --body 'Rollback completed' --actor reviewer
+PORTFOLIO_DB=incidents.db python -m mcp_incident_server.server
 ```
 
-The last command speaks MCP over stdio, so it waits for an MCP client and does not show a text menu. Configure an MCP client to launch `python -m 04_mcp_incident_server.server` with `PORTFOLIO_DB` set. Call `list_open_incidents`, then `add_incident_note` with `incident_id=7`, `body='Rollback completed'`, `actor='reviewer'`, and the approval token printed by the operator command. The token is consumed once.
+The last command speaks MCP over stdio, so it waits for an MCP client and does not show a text menu. Configure an MCP client to launch `python -m mcp_incident_server.server` with `PORTFOLIO_DB` set. Call `list_open_incidents`, then `add_incident_note` with `incident_id=7`, `body='Rollback completed'`, `actor='reviewer'`, and the approval token printed by the operator command. The token is consumed once.
 
 ## Concepts and choices
 
@@ -33,3 +34,7 @@ The approval token is bound to the proposed note but is still a bearer secret. A
 ## Interview preparation
 
 Explain tool discovery, why MCP does not grant trust, the difference between read and write permissions, why arbitrary filesystem/SQL tools are dangerous, and where approval must be enforced for a production tool server.
+
+## Verify
+
+Run `python -m pytest -q` and `python -m ruff check .` from this repository.

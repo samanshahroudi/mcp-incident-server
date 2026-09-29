@@ -1,10 +1,10 @@
 """MCP façade over a constrained incident repository. Run over stdio."""
 from __future__ import annotations
 
-import os
-import sqlite3
-import secrets
 import hashlib
+import os
+import secrets
+import sqlite3
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
