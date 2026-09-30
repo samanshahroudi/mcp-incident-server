@@ -32,8 +32,8 @@ class Incidents:
             raise ValueError("note length and actor are required")
         token = secrets.token_urlsafe(32)
         with sqlite3.connect(self.path) as db:
-            if not db.execute("SELECT 1 FROM incidents WHERE id=?", (incident_id,)).fetchone():
-                raise ValueError("incident not found")
+            if not db.execute("SELECT 1 FROM incidents WHERE id=? AND status='open'", (incident_id,)).fetchone():
+                raise ValueError("open incident not found")
             db.execute("INSERT INTO approvals VALUES (?,?,?,?,0)", (
                 hashlib.sha256(token.encode()).hexdigest(), incident_id,
                 hashlib.sha256(body.encode()).hexdigest(), actor))
@@ -44,8 +44,8 @@ class Incidents:
             raise ValueError("note length and actor are required")
         with sqlite3.connect(self.path, timeout=10) as db:
             db.execute("BEGIN IMMEDIATE")
-            if not db.execute("SELECT 1 FROM incidents WHERE id=?", (incident_id,)).fetchone():
-                raise ValueError("incident not found")
+            if not db.execute("SELECT 1 FROM incidents WHERE id=? AND status='open'", (incident_id,)).fetchone():
+                raise ValueError("open incident not found")
             changed = db.execute("UPDATE approvals SET used=1 WHERE token_hash=? AND incident_id=? AND body_hash=? AND actor=? AND used=0", (
                 hashlib.sha256(approval_token.encode()).hexdigest(), incident_id,
                 hashlib.sha256(body.encode()).hexdigest(), actor)).rowcount
