@@ -69,3 +69,21 @@ def test_note_write_failure_does_not_consume_approval(tmp_path):
     assert repo.add_note(7, "Rollback completed", "reviewer", token) > 0
     with pytest.raises(ValueError, match="reused"):
         repo.add_note(7, "Rollback completed", "reviewer", token)
+
+
+@pytest.mark.parametrize("incident_id,actor", [(8, "reviewer"), (7, "other-reviewer")])
+def test_approval_is_bound_to_incident_and_actor(tmp_path, incident_id, actor):
+    repo = Incidents(str(tmp_path / "incidents.db"))
+    with sqlite3.connect(repo.path) as db:
+        db.executemany("INSERT INTO incidents(id,title) VALUES (?,?)",
+                       [(7, "API latency"), (8, "Database latency")])
+    token = repo.approve_note(7, "Rollback completed", "reviewer")
+    with pytest.raises(ValueError, match="mismatched approval"):
+        repo.add_note(incident_id, "Rollback completed", actor, token)
+    with sqlite3.connect(repo.path) as db:
+        assert db.execute("SELECT COUNT(*) FROM notes").fetchone()[0] == 0
+        assert db.execute("SELECT used FROM approvals").fetchone()[0] == 0
+    repo.add_note(7, "Rollback completed", "reviewer", token)
+    with sqlite3.connect(repo.path) as db:
+        assert db.execute("SELECT incident_id,body,actor FROM notes").fetchall() == [
+            (7, "Rollback completed", "reviewer")]
