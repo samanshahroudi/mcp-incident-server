@@ -51,3 +51,21 @@ def test_blank_notes_cannot_be_approved_or_added(tmp_path, body):
     with sqlite3.connect(repo.path) as db:
         assert db.execute("SELECT COUNT(*) FROM notes").fetchone()[0] == 0
         assert db.execute("SELECT used FROM approvals").fetchone()[0] == 0
+
+
+def test_note_write_failure_does_not_consume_approval(tmp_path):
+    repo = Incidents(str(tmp_path / "incidents.db"))
+    with sqlite3.connect(repo.path) as db:
+        db.execute("INSERT INTO incidents(id,title) VALUES (7,'API latency')")
+        db.execute("CREATE TRIGGER fail_note BEFORE INSERT ON notes "
+                   "BEGIN SELECT RAISE(ABORT, 'note storage unavailable'); END")
+    token = repo.approve_note(7, "Rollback completed", "reviewer")
+    with pytest.raises(sqlite3.IntegrityError, match="note storage unavailable"):
+        repo.add_note(7, "Rollback completed", "reviewer", token)
+    with sqlite3.connect(repo.path) as db:
+        assert db.execute("SELECT used FROM approvals").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM notes").fetchone()[0] == 0
+        db.execute("DROP TRIGGER fail_note")
+    assert repo.add_note(7, "Rollback completed", "reviewer", token) > 0
+    with pytest.raises(ValueError, match="reused"):
+        repo.add_note(7, "Rollback completed", "reviewer", token)
