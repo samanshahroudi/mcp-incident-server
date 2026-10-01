@@ -28,7 +28,7 @@ class Incidents:
 
     def approve_note(self, incident_id: int, body: str, actor: str) -> str:
         """Called by the operator CLI, never exposed as an MCP tool."""
-        if not (1 <= len(body) <= 1000) or not actor.strip():
+        if not (1 <= len(body) <= 1000) or not body.strip() or not actor.strip():
             raise ValueError("note length and actor are required")
         token = secrets.token_urlsafe(32)
         with sqlite3.connect(self.path) as db:
@@ -40,7 +40,7 @@ class Incidents:
         return token
 
     def add_note(self, incident_id: int, body: str, actor: str, approval_token: str) -> int:
-        if not (1 <= len(body) <= 1000) or not actor.strip():
+        if not (1 <= len(body) <= 1000) or not body.strip() or not actor.strip():
             raise ValueError("note length and actor are required")
         with sqlite3.connect(self.path, timeout=10) as db:
             db.execute("BEGIN IMMEDIATE")

@@ -1,3 +1,4 @@
+import hashlib
 import sqlite3
 
 import pytest
@@ -32,3 +33,21 @@ def test_closed_incident_cannot_receive_approved_note(tmp_path):
         repo.approve_note(7, "Another note", "reviewer")
     with sqlite3.connect(repo.path) as db:
         assert db.execute("SELECT COUNT(*) FROM notes").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("body", [" ", "\t\n"])
+def test_blank_notes_cannot_be_approved_or_added(tmp_path, body):
+    repo = Incidents(str(tmp_path / "incidents.db"))
+    with sqlite3.connect(repo.path) as db:
+        db.execute("INSERT INTO incidents(id,title) VALUES (7,'API latency')")
+        # A preexisting approval must not bypass validation at the write boundary.
+        db.execute("INSERT INTO approvals VALUES (?,?,?,?,0)", (
+            hashlib.sha256(b"legacy-token").hexdigest(), 7,
+            hashlib.sha256(body.encode()).hexdigest(), "reviewer"))
+    with pytest.raises(ValueError, match="note length and actor"):
+        repo.approve_note(7, body, "reviewer")
+    with pytest.raises(ValueError, match="note length and actor"):
+        repo.add_note(7, body, "reviewer", "legacy-token")
+    with sqlite3.connect(repo.path) as db:
+        assert db.execute("SELECT COUNT(*) FROM notes").fetchone()[0] == 0
+        assert db.execute("SELECT used FROM approvals").fetchone()[0] == 0
