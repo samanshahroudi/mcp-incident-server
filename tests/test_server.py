@@ -1,5 +1,7 @@
 import hashlib
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 import pytest
 
@@ -105,3 +107,28 @@ def test_list_open_is_ordered_bounded_and_read_only(tmp_path):
     with sqlite3.connect(repo.path) as db:
         for table, rows in before.items():
             assert db.execute(f"SELECT * FROM {table}").fetchall() == rows
+
+
+def test_concurrent_note_writes_consume_approval_once(tmp_path):
+    repo = Incidents(str(tmp_path / "incidents.db"))
+    with sqlite3.connect(repo.path) as db:
+        db.execute("INSERT INTO incidents(id,title) VALUES (7,'API latency')")
+    token = repo.approve_note(7, "Rollback completed", "reviewer")
+    ready = Barrier(2)
+
+    def write_note():
+        ready.wait(timeout=5)
+        try:
+            return repo.add_note(7, "Rollback completed", "reviewer", token)
+        except ValueError as exc:
+            assert "reused" in str(exc)
+            return None
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(write_note) for _ in range(2)]
+        results = [future.result(timeout=15) for future in futures]
+    assert sum(result is not None for result in results) == 1
+    with sqlite3.connect(repo.path) as db:
+        assert db.execute("SELECT incident_id,body,actor FROM notes").fetchall() == [
+            (7, "Rollback completed", "reviewer")]
+        assert db.execute("SELECT used FROM approvals").fetchall() == [(1,)]
