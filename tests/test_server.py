@@ -87,3 +87,21 @@ def test_approval_is_bound_to_incident_and_actor(tmp_path, incident_id, actor):
     with sqlite3.connect(repo.path) as db:
         assert db.execute("SELECT incident_id,body,actor FROM notes").fetchall() == [
             (7, "Rollback completed", "reviewer")]
+
+
+def test_list_open_is_ordered_bounded_and_read_only(tmp_path):
+    repo = Incidents(str(tmp_path / "incidents.db"))
+    with sqlite3.connect(repo.path) as db:
+        db.executemany("INSERT INTO incidents(id,title,status) VALUES (?,?,?)", [
+            (key, f"Incident {key}", "closed" if key == 1 else "open")
+            for key in range(106, 0, -1)
+        ])
+        before = {table: db.execute(f"SELECT * FROM {table}").fetchall()
+                  for table in ("incidents", "notes", "approvals")}
+    assert repo.list_open() == [
+        {"id": key, "title": f"Incident {key}", "status": "open"}
+        for key in range(2, 102)
+    ]
+    with sqlite3.connect(repo.path) as db:
+        for table, rows in before.items():
+            assert db.execute(f"SELECT * FROM {table}").fetchall() == rows
