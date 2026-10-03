@@ -21,6 +21,13 @@ def test_tool_discovery_and_approved_note_dispatch(tmp_path, monkeypatch):
         tools = {tool.name: tool for tool in await mcp.list_tools()}
         # Approval issuance must remain outside the agent's discoverable tools.
         assert set(tools) == {"list_open_incidents", "add_incident_note"}
+        assert tools["list_open_incidents"].annotations.readOnlyHint is True
+        assert tools["list_open_incidents"].annotations.openWorldHint is False
+        note_annotations = tools["add_incident_note"].annotations
+        assert note_annotations.readOnlyHint is False
+        assert note_annotations.destructiveHint is False
+        assert note_annotations.idempotentHint is False
+        assert note_annotations.openWorldHint is False
         assert set(tools["add_incident_note"].inputSchema["required"]) == {
             "incident_id", "body", "actor", "approval_token"}
         _, listed = await mcp.call_tool("list_open_incidents", {})

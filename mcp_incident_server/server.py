@@ -8,6 +8,7 @@ import sqlite3
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 mcp = FastMCP("incident-ops")
 
@@ -59,13 +60,14 @@ def repo() -> Incidents:
     return Incidents(os.getenv("PORTFOLIO_DB", "incidents.db"))
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False))
 def list_open_incidents() -> list[dict]:
     """List at most 100 open incidents. Read-only."""
     return repo().list_open()
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
+                                     idempotentHint=False, openWorldHint=False))
 def add_incident_note(incident_id: int, body: str, actor: str, approval_token: str) -> dict:
     """Add an audit-attributed note with a single-use approval token."""
     return {"note_id": repo().add_note(incident_id, body, actor, approval_token)}
