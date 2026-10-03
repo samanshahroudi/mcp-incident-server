@@ -23,6 +23,8 @@ PORTFOLIO_DB=incidents.db python -m mcp_incident_server.server
 
 The last command speaks MCP over stdio, so it waits for an MCP client and does not show a text menu. Configure an MCP client to launch `python -m mcp_incident_server.server` with `PORTFOLIO_DB` set. Call `list_open_incidents`, then `add_incident_note` with `incident_id=7`, `body='Rollback completed'`, `actor='reviewer'`, and the approval token printed by the operator command. The token is consumed once.
 
+The operator command rejects blank notes, notes longer than 1000 characters, and blank actors as CLI usage errors before creating a database.
+
 ## Concepts and choices
 
 MCP is the interoperability layer; validation and authorization remain application responsibilities. Stdio avoids exposing an unauthenticated network service in this demo. The repository is tested without an MCP client, while the decorator creates discoverable typed tools.

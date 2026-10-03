@@ -12,6 +12,8 @@ def main() -> None:
     parser.add_argument("--body", required=True)
     parser.add_argument("--actor", required=True)
     args = parser.parse_args()
+    if not (1 <= len(args.body) <= 1000) or not args.body.strip() or not args.actor.strip():
+        parser.error("note length and actor are required")
     print(Incidents(args.db).approve_note(args.incident_id, args.body, args.actor))
 
 
