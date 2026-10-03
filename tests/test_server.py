@@ -132,3 +132,19 @@ def test_concurrent_note_writes_consume_approval_once(tmp_path):
         assert db.execute("SELECT incident_id,body,actor FROM notes").fetchall() == [
             (7, "Rollback completed", "reviewer")]
         assert db.execute("SELECT used FROM approvals").fetchall() == [(1,)]
+
+
+def test_approval_and_consumption_survive_repository_restart(tmp_path):
+    path = str(tmp_path / "incidents.db")
+    repo = Incidents(path)
+    with sqlite3.connect(path) as db:
+        db.execute("INSERT INTO incidents(id,title) VALUES (7,'API latency')")
+    token = repo.approve_note(7, "Rollback completed", "reviewer")
+    restarted = Incidents(path)
+    note_id = restarted.add_note(7, "Rollback completed", "reviewer", token)
+    with pytest.raises(ValueError, match="reused"):
+        Incidents(path).add_note(7, "Rollback completed", "reviewer", token)
+    with sqlite3.connect(path) as db:
+        assert db.execute("SELECT id,incident_id,body,actor FROM notes").fetchall() == [
+            (note_id, 7, "Rollback completed", "reviewer")]
+        assert db.execute("SELECT used FROM approvals").fetchall() == [(1,)]
