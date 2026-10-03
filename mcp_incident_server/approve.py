@@ -14,7 +14,11 @@ def main() -> None:
     args = parser.parse_args()
     if not (1 <= len(args.body) <= 1000) or not args.body.strip() or not args.actor.strip():
         parser.error("note length and actor are required")
-    print(Incidents(args.db).approve_note(args.incident_id, args.body, args.actor))
+    try:
+        token = Incidents(args.db).approve_note(args.incident_id, args.body, args.actor)
+    except ValueError as exc:
+        parser.error(str(exc))
+    print(token)
 
 
 if __name__ == "__main__":

@@ -25,6 +25,8 @@ The last command speaks MCP over stdio, so it waits for an MCP client and does n
 
 The operator command rejects blank notes, notes longer than 1000 characters, and blank actors as CLI usage errors before creating a database.
 
+Missing or closed incidents are reported as CLI usage errors without printing an approval token.
+
 ## Concepts and choices
 
 MCP is the interoperability layer; validation and authorization remain application responsibilities. Stdio avoids exposing an unauthenticated network service in this demo. The repository is tested without an MCP client, while the decorator creates discoverable typed tools.
