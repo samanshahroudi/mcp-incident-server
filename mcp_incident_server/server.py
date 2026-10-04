@@ -5,6 +5,7 @@ import hashlib
 import os
 import secrets
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -17,13 +18,13 @@ class Incidents:
     def __init__(self, path: str):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.path = path
-        with sqlite3.connect(path) as db:
+        with closing(sqlite3.connect(path)) as db, db:
             db.execute("CREATE TABLE IF NOT EXISTS incidents (id INTEGER PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open')")
             db.execute("CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, incident_id INTEGER NOT NULL, body TEXT NOT NULL, actor TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
             db.execute("CREATE TABLE IF NOT EXISTS approvals (token_hash TEXT PRIMARY KEY, incident_id INTEGER, body_hash TEXT, actor TEXT, used INTEGER NOT NULL DEFAULT 0)")
 
     def list_open(self) -> list[dict]:
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             rows = db.execute("SELECT id,title,status FROM incidents WHERE status='open' ORDER BY id LIMIT 100").fetchall()
         return [dict(zip(("id", "title", "status"), row)) for row in rows]
 
@@ -32,7 +33,7 @@ class Incidents:
         if not (1 <= len(body) <= 1000) or not body.strip() or not actor.strip():
             raise ValueError("note length and actor are required")
         token = secrets.token_urlsafe(32)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             if not db.execute("SELECT 1 FROM incidents WHERE id=? AND status='open'", (incident_id,)).fetchone():
                 raise ValueError("open incident not found")
             db.execute("INSERT INTO approvals VALUES (?,?,?,?,0)", (
@@ -43,7 +44,7 @@ class Incidents:
     def add_note(self, incident_id: int, body: str, actor: str, approval_token: str) -> int:
         if not (1 <= len(body) <= 1000) or not body.strip() or not actor.strip():
             raise ValueError("note length and actor are required")
-        with sqlite3.connect(self.path, timeout=10) as db:
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
             db.execute("BEGIN IMMEDIATE")
             if not db.execute("SELECT 1 FROM incidents WHERE id=? AND status='open'", (incident_id,)).fetchone():
                 raise ValueError("open incident not found")

@@ -148,3 +148,34 @@ def test_approval_and_consumption_survive_repository_restart(tmp_path):
         assert db.execute("SELECT id,incident_id,body,actor FROM notes").fetchall() == [
             (note_id, 7, "Rollback completed", "reviewer")]
         assert db.execute("SELECT used FROM approvals").fetchall() == [(1,)]
+
+
+def test_connections_close_after_reads_approvals_and_note_failures(tmp_path, monkeypatch):
+    path = str(tmp_path / "incidents.db")
+    repo = Incidents(path)
+    with sqlite3.connect(path) as db:
+        db.execute("INSERT INTO incidents(id,title) VALUES (7,'API latency')")
+    db.close()
+    connections = []
+    connect = sqlite3.connect
+
+    def track_connection(*args, **kwargs):
+        connection = connect(*args, **kwargs)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(sqlite3, "connect", track_connection)
+    repo = Incidents(path)
+    assert repo.list_open()[0]["id"] == 7
+    token = repo.approve_note(7, "Rollback completed", "reviewer")
+    with pytest.raises(ValueError, match="mismatched approval"):
+        repo.add_note(7, "Different note", "reviewer", token)
+    assert repo.add_note(7, "Rollback completed", "reviewer", token) > 0
+    with pytest.raises(ValueError, match="reused"):
+        repo.add_note(7, "Rollback completed", "reviewer", token)
+    with pytest.raises(ValueError, match="open incident not found"):
+        repo.approve_note(99, "Rollback completed", "reviewer")
+    assert connections
+    for connection in connections:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+            connection.execute("SELECT 1")
