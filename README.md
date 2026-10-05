@@ -25,6 +25,8 @@ The last command speaks MCP over stdio, so it waits for an MCP client and does n
 
 The operator command rejects blank notes, notes longer than 1000 characters, and blank actors as CLI usage errors before creating a database.
 
+The MCP note tool advertises these text constraints in its input schema and rejects invalid text before opening the database.
+
 Missing or closed incidents are reported as CLI usage errors without printing an approval token.
 
 ## Concepts and choices

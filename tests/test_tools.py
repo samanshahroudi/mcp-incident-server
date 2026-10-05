@@ -30,6 +30,11 @@ def test_tool_discovery_and_approved_note_dispatch(tmp_path, monkeypatch):
         assert note_annotations.openWorldHint is False
         assert set(tools["add_incident_note"].inputSchema["required"]) == {
             "incident_id", "body", "actor", "approval_token"}
+        properties = tools["add_incident_note"].inputSchema["properties"]
+        assert properties["body"]["minLength"] == 1
+        assert properties["body"]["maxLength"] == 1000
+        assert properties["body"]["pattern"] == r"\S"
+        assert properties["actor"]["pattern"] == r"\S"
         _, listed = await mcp.call_tool("list_open_incidents", {})
         assert listed == {"result": [{"id": 7, "title": "API latency", "status": "open"}]}
         arguments = {"incident_id": 7, "body": "Rollback completed", "actor": "reviewer"}
@@ -47,3 +52,16 @@ def test_tool_discovery_and_approved_note_dispatch(tmp_path, monkeypatch):
         assert db.execute("SELECT incident_id,body,actor FROM notes").fetchall() == [
             (7, "Rollback completed", "reviewer")]
         assert db.execute("SELECT used FROM approvals").fetchall() == [(1,)]
+
+
+@pytest.mark.parametrize("changes", [{"body": ""}, {"body": " "},
+                                     {"body": "x" * 1001}, {"actor": ""},
+                                     {"actor": " \t\n"}])
+def test_invalid_tool_text_is_rejected_before_database_access(tmp_path, monkeypatch, changes):
+    path = tmp_path / "incidents.db"
+    monkeypatch.setenv("PORTFOLIO_DB", str(path))
+    arguments = {"incident_id": 7, "body": "Recovery confirmed", "actor": "reviewer",
+                 "approval_token": "unused", **changes}
+    with pytest.raises(ToolError, match="validation error"):
+        asyncio.run(mcp.call_tool("add_incident_note", arguments))
+    assert not path.exists()

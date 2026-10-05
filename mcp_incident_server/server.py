@@ -7,9 +7,11 @@ import secrets
 import sqlite3
 from contextlib import closing
 from pathlib import Path
+from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 mcp = FastMCP("incident-ops")
 
@@ -69,7 +71,12 @@ def list_open_incidents() -> list[dict]:
 
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                      idempotentHint=False, openWorldHint=False))
-def add_incident_note(incident_id: int, body: str, actor: str, approval_token: str) -> dict:
+def add_incident_note(
+    incident_id: int,
+    body: Annotated[str, Field(min_length=1, max_length=1000, pattern=r"\S")],
+    actor: Annotated[str, Field(pattern=r"\S")],
+    approval_token: str,
+) -> dict:
     """Add an audit-attributed note with a single-use approval token."""
     return {"note_id": repo().add_note(incident_id, body, actor, approval_token)}
 
