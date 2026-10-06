@@ -32,6 +32,8 @@ class Incidents:
 
     def approve_note(self, incident_id: int, body: str, actor: str) -> str:
         """Called by the operator CLI, never exposed as an MCP tool."""
+        if not isinstance(incident_id, int) or isinstance(incident_id, bool):
+            raise TypeError("incident ID must be an integer")
         if not (1 <= len(body) <= 1000) or not body.strip() or not actor.strip():
             raise ValueError("note length and actor are required")
         token = secrets.token_urlsafe(32)
@@ -44,6 +46,8 @@ class Incidents:
         return token
 
     def add_note(self, incident_id: int, body: str, actor: str, approval_token: str) -> int:
+        if not isinstance(incident_id, int) or isinstance(incident_id, bool):
+            raise TypeError("incident ID must be an integer")
         if not (1 <= len(body) <= 1000) or not body.strip() or not actor.strip():
             raise ValueError("note length and actor are required")
         with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
@@ -72,7 +76,7 @@ def list_open_incidents() -> list[dict]:
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                      idempotentHint=False, openWorldHint=False))
 def add_incident_note(
-    incident_id: int,
+    incident_id: Annotated[int, Field(strict=True)],
     body: Annotated[str, Field(min_length=1, max_length=1000, pattern=r"\S")],
     actor: Annotated[str, Field(pattern=r"\S")],
     approval_token: str,

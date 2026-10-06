@@ -65,3 +65,16 @@ def test_invalid_tool_text_is_rejected_before_database_access(tmp_path, monkeypa
     with pytest.raises(ToolError, match="validation error"):
         asyncio.run(mcp.call_tool("add_incident_note", arguments))
     assert not path.exists()
+
+
+@pytest.mark.parametrize("incident_id", [True, False, "7", 7.0, 7.5])
+def test_invalid_tool_incident_ids_are_rejected_before_database_access(
+    tmp_path, monkeypatch, incident_id,
+):
+    path = tmp_path / "incidents.db"
+    monkeypatch.setenv("PORTFOLIO_DB", str(path))
+    arguments = {"incident_id": incident_id, "body": "Recovery confirmed", "actor": "reviewer",
+                 "approval_token": "unused"}
+    with pytest.raises(ToolError, match="validation error"):
+        asyncio.run(mcp.call_tool("add_incident_note", arguments))
+    assert not path.exists()

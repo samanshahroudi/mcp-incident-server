@@ -179,3 +179,19 @@ def test_connections_close_after_reads_approvals_and_note_failures(tmp_path, mon
     for connection in connections:
         with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
             connection.execute("SELECT 1")
+
+
+@pytest.mark.parametrize("incident_id", [True, False, "1", 1.0, 1.5])
+def test_repository_rejects_coerced_incident_ids_without_consuming_approval(tmp_path, incident_id):
+    repo = Incidents(str(tmp_path / "incidents.db"))
+    with sqlite3.connect(repo.path) as db:
+        db.execute("INSERT INTO incidents(id,title) VALUES (1,'API latency')")
+    token = repo.approve_note(1, "Recovery confirmed", "reviewer")
+    with pytest.raises(TypeError, match="incident ID must be an integer"):
+        repo.approve_note(incident_id, "Recovery confirmed", "reviewer")
+    with pytest.raises(TypeError, match="incident ID must be an integer"):
+        repo.add_note(incident_id, "Recovery confirmed", "reviewer", token)
+    with sqlite3.connect(repo.path) as db:
+        assert db.execute("SELECT COUNT(*) FROM notes").fetchone()[0] == 0
+        assert db.execute("SELECT used FROM approvals").fetchall() == [(0,)]
+    assert repo.add_note(1, "Recovery confirmed", "reviewer", token) > 0
