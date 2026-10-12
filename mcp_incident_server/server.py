@@ -79,7 +79,7 @@ def add_incident_note(
     incident_id: Annotated[int, Field(strict=True)],
     body: Annotated[str, Field(min_length=1, max_length=1000, pattern=r"\S")],
     actor: Annotated[str, Field(pattern=r"\S")],
-    approval_token: str,
+    approval_token: Annotated[str, Field(min_length=1, pattern=r"\S")],
 ) -> dict:
     """Add an audit-attributed note with a single-use approval token."""
     return {"note_id": repo().add_note(incident_id, body, actor, approval_token)}

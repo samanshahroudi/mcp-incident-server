@@ -29,6 +29,8 @@ The MCP note tool advertises these text constraints in its input schema and reje
 
 Missing or closed incidents are reported as CLI usage errors without printing an approval token.
 
+Blank approval tokens are rejected by the MCP tool schema before opening the database.
+
 ## Concepts and choices
 
 MCP is the interoperability layer; validation and authorization remain application responsibilities. Stdio avoids exposing an unauthenticated network service in this demo. The repository is tested without an MCP client, while the decorator creates discoverable typed tools.
