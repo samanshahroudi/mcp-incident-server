@@ -14,6 +14,8 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 mcp = FastMCP("incident-ops")
+MIN_INCIDENT_ID = -(2**63)
+MAX_INCIDENT_ID = 2**63 - 1
 
 
 class Incidents:
@@ -34,6 +36,8 @@ class Incidents:
         """Called by the operator CLI, never exposed as an MCP tool."""
         if not isinstance(incident_id, int) or isinstance(incident_id, bool):
             raise TypeError("incident ID must be an integer")
+        if not MIN_INCIDENT_ID <= incident_id <= MAX_INCIDENT_ID:
+            raise ValueError("incident ID must fit a signed 64-bit integer")
         if not (1 <= len(body) <= 1000) or not body.strip() or not actor.strip():
             raise ValueError("note length and actor are required")
         token = secrets.token_urlsafe(32)
@@ -48,6 +52,8 @@ class Incidents:
     def add_note(self, incident_id: int, body: str, actor: str, approval_token: str) -> int:
         if not isinstance(incident_id, int) or isinstance(incident_id, bool):
             raise TypeError("incident ID must be an integer")
+        if not MIN_INCIDENT_ID <= incident_id <= MAX_INCIDENT_ID:
+            raise ValueError("incident ID must fit a signed 64-bit integer")
         if not (1 <= len(body) <= 1000) or not body.strip() or not actor.strip():
             raise ValueError("note length and actor are required")
         with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
@@ -76,10 +82,10 @@ def list_open_incidents() -> list[dict]:
 @mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                      idempotentHint=False, openWorldHint=False))
 def add_incident_note(
-    incident_id: Annotated[int, Field(strict=True)],
+    incident_id: Annotated[int, Field(strict=True, ge=MIN_INCIDENT_ID, le=MAX_INCIDENT_ID)],
     body: Annotated[str, Field(min_length=1, max_length=1000, pattern=r"\S")],
     actor: Annotated[str, Field(pattern=r"\S")],
-    approval_token: str,
+    approval_token: Annotated[str, Field(min_length=1, pattern=r"\S")],
 ) -> dict:
     """Add an audit-attributed note with a single-use approval token."""
     return {"note_id": repo().add_note(incident_id, body, actor, approval_token)}

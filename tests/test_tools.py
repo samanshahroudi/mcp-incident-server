@@ -31,10 +31,14 @@ def test_tool_discovery_and_approved_note_dispatch(tmp_path, monkeypatch):
         assert set(tools["add_incident_note"].inputSchema["required"]) == {
             "incident_id", "body", "actor", "approval_token"}
         properties = tools["add_incident_note"].inputSchema["properties"]
+        assert properties["incident_id"]["minimum"] == -(2**63)
+        assert properties["incident_id"]["maximum"] == 2**63 - 1
         assert properties["body"]["minLength"] == 1
         assert properties["body"]["maxLength"] == 1000
         assert properties["body"]["pattern"] == r"\S"
         assert properties["actor"]["pattern"] == r"\S"
+        assert properties["approval_token"]["minLength"] == 1
+        assert properties["approval_token"]["pattern"] == r"\S"
         _, listed = await mcp.call_tool("list_open_incidents", {})
         assert listed == {"result": [{"id": 7, "title": "API latency", "status": "open"}]}
         arguments = {"incident_id": 7, "body": "Rollback completed", "actor": "reviewer"}
@@ -56,7 +60,8 @@ def test_tool_discovery_and_approved_note_dispatch(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("changes", [{"body": ""}, {"body": " "},
                                      {"body": "x" * 1001}, {"actor": ""},
-                                     {"actor": " \t\n"}])
+                                     {"actor": " \t\n"}, {"approval_token": ""},
+                                     {"approval_token": " \t\n"}])
 def test_invalid_tool_text_is_rejected_before_database_access(tmp_path, monkeypatch, changes):
     path = tmp_path / "incidents.db"
     monkeypatch.setenv("PORTFOLIO_DB", str(path))
@@ -67,7 +72,7 @@ def test_invalid_tool_text_is_rejected_before_database_access(tmp_path, monkeypa
     assert not path.exists()
 
 
-@pytest.mark.parametrize("incident_id", [True, False, "7", 7.0, 7.5])
+@pytest.mark.parametrize("incident_id", [True, False, "7", 7.0, 7.5, -(2**63) - 1, 2**63])
 def test_invalid_tool_incident_ids_are_rejected_before_database_access(
     tmp_path, monkeypatch, incident_id,
 ):
