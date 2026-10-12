@@ -31,6 +31,8 @@ def test_tool_discovery_and_approved_note_dispatch(tmp_path, monkeypatch):
         assert set(tools["add_incident_note"].inputSchema["required"]) == {
             "incident_id", "body", "actor", "approval_token"}
         properties = tools["add_incident_note"].inputSchema["properties"]
+        assert properties["incident_id"]["minimum"] == -(2**63)
+        assert properties["incident_id"]["maximum"] == 2**63 - 1
         assert properties["body"]["minLength"] == 1
         assert properties["body"]["maxLength"] == 1000
         assert properties["body"]["pattern"] == r"\S"
@@ -70,7 +72,7 @@ def test_invalid_tool_text_is_rejected_before_database_access(tmp_path, monkeypa
     assert not path.exists()
 
 
-@pytest.mark.parametrize("incident_id", [True, False, "7", 7.0, 7.5])
+@pytest.mark.parametrize("incident_id", [True, False, "7", 7.0, 7.5, -(2**63) - 1, 2**63])
 def test_invalid_tool_incident_ids_are_rejected_before_database_access(
     tmp_path, monkeypatch, incident_id,
 ):

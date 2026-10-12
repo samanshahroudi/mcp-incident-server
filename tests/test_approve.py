@@ -51,3 +51,20 @@ def test_unavailable_incident_is_usage_error_without_approval(tmp_path, monkeypa
     assert "Traceback" not in captured.err
     with sqlite3.connect(path) as db:
         assert db.execute("SELECT COUNT(*) FROM approvals").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("incident_id", [-(2**63) - 1, 2**63])
+def test_out_of_range_id_is_usage_error_before_database_creation(
+    tmp_path, monkeypatch, capsys, incident_id,
+):
+    path = tmp_path / "incidents.db"
+    monkeypatch.setattr("sys.argv", ["approve", "--db", str(path),
+                                    "--incident-id", str(incident_id),
+                                    "--body", "Recovery confirmed", "--actor", "reviewer"])
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "signed 64-bit integer" in captured.err
+    assert not path.exists()

@@ -195,3 +195,28 @@ def test_repository_rejects_coerced_incident_ids_without_consuming_approval(tmp_
         assert db.execute("SELECT COUNT(*) FROM notes").fetchone()[0] == 0
         assert db.execute("SELECT used FROM approvals").fetchall() == [(0,)]
     assert repo.add_note(1, "Recovery confirmed", "reviewer", token) > 0
+
+
+@pytest.mark.parametrize("incident_id", [-(2**63) - 1, 2**63])
+def test_out_of_range_incident_ids_are_rejected_before_database_access(
+    tmp_path, monkeypatch, incident_id,
+):
+    repo = Incidents(str(tmp_path / "incidents.db"))
+    monkeypatch.setattr(sqlite3, "connect",
+                        lambda *args, **kwargs: pytest.fail("invalid IDs must not access SQLite"))
+    with pytest.raises(ValueError, match="signed 64-bit integer"):
+        repo.approve_note(incident_id, "Recovery confirmed", "reviewer")
+    with pytest.raises(ValueError, match="signed 64-bit integer"):
+        repo.add_note(incident_id, "Recovery confirmed", "reviewer", "unused")
+
+
+@pytest.mark.parametrize("incident_id", [-(2**63), 2**63 - 1])
+def test_sqlite_incident_id_boundaries_can_be_approved_and_consumed(tmp_path, incident_id):
+    repo = Incidents(str(tmp_path / "incidents.db"))
+    with sqlite3.connect(repo.path) as db:
+        db.execute("INSERT INTO incidents(id,title) VALUES (?,?)", (incident_id, "API latency"))
+    token = repo.approve_note(incident_id, "Recovery confirmed", "reviewer")
+    note_id = repo.add_note(incident_id, "Recovery confirmed", "reviewer", token)
+    with sqlite3.connect(repo.path) as db:
+        assert db.execute("SELECT id,incident_id FROM notes").fetchall() == [(note_id, incident_id)]
+        assert db.execute("SELECT used FROM approvals").fetchall() == [(1,)]

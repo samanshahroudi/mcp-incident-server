@@ -26,6 +26,7 @@ The last command speaks MCP over stdio, so it waits for an MCP client and does n
 The operator command rejects blank notes, notes longer than 1000 characters, and blank actors as CLI usage errors before creating a database.
 
 The MCP note tool advertises these text constraints in its input schema and rejects invalid text before opening the database. Incident IDs must be integers; booleans, strings, and floats are rejected by both the tool and repository instead of being coerced into another incident.
+Incident IDs must fit SQLite's signed 64-bit integer range. Out-of-range IDs are rejected by the tool schema, repository, and operator CLI before database access; CLI errors exit with status 2.
 
 Missing or closed incidents are reported as CLI usage errors without printing an approval token.
 
