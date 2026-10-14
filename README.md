@@ -32,6 +32,8 @@ Missing or closed incidents are reported as CLI usage errors without printing an
 
 Blank approval tokens are rejected by the MCP tool schema before opening the database.
 
+The operator CLI reports database access failures as usage errors with the database path and exit status 2, without printing a token.
+
 ## Concepts and choices
 
 MCP is the interoperability layer; validation and authorization remain application responsibilities. Stdio avoids exposing an unauthenticated network service in this demo. The repository is tested without an MCP client, while the decorator creates discoverable typed tools.

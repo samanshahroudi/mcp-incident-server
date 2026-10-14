@@ -1,6 +1,7 @@
 """Local operator command. Protect shell access and the printed token."""
 import argparse
 import os
+import sqlite3
 
 from .server import MAX_INCIDENT_ID, MIN_INCIDENT_ID, Incidents
 
@@ -18,6 +19,8 @@ def main() -> None:
         parser.error("note length and actor are required")
     try:
         token = Incidents(args.db).approve_note(args.incident_id, args.body, args.actor)
+    except (OSError, sqlite3.DatabaseError) as exc:
+        parser.error(f"cannot open database {args.db}: {exc}")
     except ValueError as exc:
         parser.error(str(exc))
     print(token)

@@ -6,6 +6,27 @@ from mcp_incident_server.approve import main
 from mcp_incident_server.server import Incidents
 
 
+@pytest.mark.parametrize("problem", ["directory", "parent_file", "invalid_database"])
+def test_database_errors_are_usage_errors_without_token(tmp_path, monkeypatch, capsys, problem):
+    path = tmp_path / "incidents.db"
+    if problem == "directory":
+        path.mkdir()
+    elif problem == "parent_file":
+        path.write_text("not a directory")
+        path = path / "incidents.db"
+    else:
+        path.write_text("not a SQLite database")
+    monkeypatch.setattr("sys.argv", ["approve", "--db", str(path), "--incident-id", "7",
+                                    "--body", "Rollback completed", "--actor", "reviewer"])
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert f"cannot open database {path}" in captured.err
+    assert "Traceback" not in captured.err
+
+
 @pytest.mark.parametrize("body,actor", [("", "reviewer"), ("   ", "reviewer"),
                                       ("x" * 1001, "reviewer"), ("Valid note", ""),
                                       ("Valid note", " ")])
