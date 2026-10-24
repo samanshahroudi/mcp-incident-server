@@ -50,6 +50,8 @@ class Incidents:
         return token
 
     def add_note(self, incident_id: int, body: str, actor: str, approval_token: str) -> int:
+        if not approval_token.strip():
+            raise ValueError("approval token cannot be blank")
         if not isinstance(incident_id, int) or isinstance(incident_id, bool):
             raise TypeError("incident ID must be an integer")
         if not MIN_INCIDENT_ID <= incident_id <= MAX_INCIDENT_ID:

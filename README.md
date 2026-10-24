@@ -31,6 +31,7 @@ Incident IDs must fit SQLite's signed 64-bit integer range. Out-of-range IDs are
 Missing or closed incidents are reported as CLI usage errors without printing an approval token.
 
 Blank approval tokens are rejected by the MCP tool schema before opening the database.
+Direct repository calls also reject blank tokens before database access, leaving valid approvals available for retry.
 
 The operator CLI reports database access failures as usage errors with the database path and exit status 2, without printing a token.
 

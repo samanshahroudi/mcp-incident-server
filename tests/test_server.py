@@ -220,3 +220,19 @@ def test_sqlite_incident_id_boundaries_can_be_approved_and_consumed(tmp_path, in
     with sqlite3.connect(repo.path) as db:
         assert db.execute("SELECT id,incident_id FROM notes").fetchall() == [(note_id, incident_id)]
         assert db.execute("SELECT used FROM approvals").fetchall() == [(1,)]
+
+
+@pytest.mark.parametrize("token", ["", " ", "\t\n"])
+def test_blank_repository_token_is_rejected_before_database_access(tmp_path, monkeypatch, token):
+    repo = Incidents(str(tmp_path / "incidents.db"))
+    with sqlite3.connect(repo.path) as db:
+        db.execute("INSERT INTO incidents(id,title) VALUES (7,'API latency')")
+    valid_token = repo.approve_note(7, "Rollback completed", "reviewer")
+    with monkeypatch.context() as patch:
+        patch.setattr(sqlite3, "connect", lambda *args, **kwargs: pytest.fail(
+            "blank token must not open database"))
+        with pytest.raises(ValueError, match="approval token cannot be blank"):
+            repo.add_note(7, "Rollback completed", "reviewer", token)
+    assert repo.add_note(7, "Rollback completed", "reviewer", valid_token) > 0
+    with sqlite3.connect(repo.path) as db:
+        assert db.execute("SELECT COUNT(*) FROM notes").fetchone()[0] == 1
